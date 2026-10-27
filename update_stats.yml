@@ -1,0 +1,40 @@
+name: Auto Update OP.GG Stats
+
+on:
+  # 毎週木曜日 午前4:00 (JST) = 水曜 19:00 (UTC) に自動定期実行
+  schedule:
+    - cron: '0 19 * * 3'
+  # GitHubの「Actions」タブから手動でボタン1発実行可能
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-stats:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run OP.GG Data Fetcher
+        run: |
+          python scripts/fetch_opgg.py
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.js opgg_stats.json opgg_stats.js
+          if git diff --staged --quiet; then
+            echo "No changes detected. Files are already up to date."
+          else
+            git commit -m "Auto-update OP.GG stats [skip ci]"
+            git push
+          fi
