@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JGGAP</title>
+  <meta name="description" content="対面にJGGAPしよう">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Yu Gothic"', 'YuGothic', 'Meiryo', '"Noto Sans JP"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+          },
+          colors: {
+            lol: {
+              bg: '#040711',
+              panel: '#091424',
+              card: '#0d1b2f',
+              blueBg: '#091b33',
+              blueBorder: '#0099ff',
+              redBg: '#260a16',
+              redBorder: '#ff2d55',
+              gold: '#c8aa6e',
+              goldLight: '#f0e6d2',
+              teal: '#0ac8b9',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css?v=3">
+  <style>
+    body, button, input, select, textarea {
+      font-family: "Yu Gothic", "YuGothic", "Meiryo", "Noto Sans JP", sans-serif !important;
+    }
+  </style>
+</head>
+<body class="bg-[#040711] text-slate-100 min-h-screen antialiased selection:bg-teal-500 selection:text-white font-sans flex flex-col justify-between">
+
+  <!-- ==================== 1. ミニマル・グローバルヘッダー ==================== -->
+  <header class="bg-[#06101d] border-b border-[#1b2b3d] px-4 py-2 shadow-xl flex-shrink-0 z-20">
+    <div class="max-w-[1440px] mx-auto flex items-center justify-between gap-4">
+      <!-- 左：パッチ番号のみの極小ミニマルバッジ -->
+      <div class="flex items-center space-x-2">
+        <span id="header-patch" class="text-xs font-mono font-black px-2.5 py-1 rounded-lg bg-cyan-950/60 text-cyan-300 border border-cyan-500/40 tracking-wider">
+          PATCH 16.21
+        </span>
+      </div>
+
+      <!-- 右：アクションボタン群 -->
+      <div class="flex items-center space-x-2.5">
+        <!-- レート帯切替 -->
+        <div class="flex items-center bg-[#091728] rounded-xl p-1 border border-[#1c3249]">
+          <button id="tier-emerald" class="px-3 py-1 rounded-lg text-xs font-black bg-teal-600 text-white shadow-md transition-all">
+            エメ以上
+          </button>
+          <button id="tier-gold" class="px-3 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition-all">
+            ゴル以下
+          </button>
+        </div>
+
+        <!-- 🔄 リセット -->
+        <button id="btn-reset" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-500 text-xs font-bold active:scale-95 transition-all shadow-md" title="全スロットを初期化（よく使うチャンピオンは保持）">
+          <i data-lucide="rotate-ccw" class="w-4 h-4 text-amber-400"></i>
+          <span>リセット</span>
+        </button>
+
+        <!-- 📥 データ更新 -->
+        <button id="btn-sync" class="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 bg-teal-600 hover:bg-teal-500 text-white border border-teal-400/40" title="最新パッチ統計に同期">
+          <i id="sync-icon" data-lucide="refresh-cw" class="w-4 h-4"></i>
+          <span id="sync-text">データ更新</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== 2. よく使うチャンピオン固定バー ==================== -->
+  <section class="bg-[#081525] border-b border-[#182a3d] px-4 py-2.5 shadow-inner flex-shrink-0">
+    <div class="max-w-[1440px] mx-auto flex items-center justify-between gap-4 overflow-x-auto no-scrollbar">
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2 flex-shrink-0">
+          <div class="flex items-center space-x-1.5 text-xs font-black text-amber-400">
+            <i data-lucide="star" class="w-4 h-4 fill-amber-400 text-amber-400"></i>
+            <span>よく使うチャンピオン:</span>
+          </div>
+          <!-- ★の横に登録ボタン（左側） -->
+          <button id="btn-toggle-fav-mode" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all shadow-md active:scale-95 bg-[#0e2238] hover:bg-[#153456] text-amber-300 border border-amber-500/40 flex-shrink-0">
+            <i id="fav-mode-icon" data-lucide="settings-2" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span id="fav-mode-btn-text">よく使うチャンピオンの登録</span>
+          </button>
+        </div>
+
+        <!-- よく使うチャンピオン一覧（初期は空・登録すると大きめアイコン） -->
+        <div id="favorites-bar" class="flex items-center space-x-3">
+          <!-- JSでレンダリング -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 3. メインドラフトボード（3カラム黄金比レイアウト） ==================== -->
+  <main class="flex-1 max-w-[1440px] w-full mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
+
+    <!-- ========== 左カラム：（自軍） ========== -->
+    <div class="lg:col-span-3 bg-[#08182b] rounded-2xl border-2 border-[#0099ff]/50 p-3 shadow-2xl flex flex-col justify-start h-fit">
+      <div>
+        <!-- チームヘッダー -->
+        <div class="flex items-center justify-between pb-2.5 border-b border-[#0f3a63] mb-3">
+          <div class="flex items-center space-x-2">
+            <div class="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-md shadow-cyan-400/80"></div>
+            <span class="font-black text-sm text-cyan-300 tracking-wider">味方チーム</span>
+          </div>
+        </div>
+
+        <!-- JG ⭐ メイン枠 -->
+        <div id="slot-ally-jg" data-slot="ally-JUNGLE" class="slot-box relative p-3 rounded-2xl bg-[#0d2747] border-2 border-cyan-400 cursor-pointer hover:border-cyan-300 transition-all shadow-xl group">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs font-black text-cyan-200 flex items-center">
+              <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-jungle.png" class="w-4 h-4 mr-1.5 filter brightness-125">
+              JG
+            </span>
+          </div>
+          <div class="slot-content flex items-center space-x-3">
+            <!-- JS -->
+          </div>
+        </div>
+
+        <!-- 他レーン（Top/Mid/Bot/Sup）折りたたみセクション -->
+        <div class="mt-3">
+          <button id="btn-toggle-ally-lanes" class="w-full py-1.5 px-2.5 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-800/60 text-cyan-300 hover:text-cyan-200 text-xs font-bold flex items-center justify-between transition-all">
+            <span class="flex items-center space-x-1.5">
+              <i data-lucide="layers" class="w-3.5 h-3.5 text-cyan-400"></i>
+              <span id="ally-lanes-btn-text">他レーンを展開</span>
+            </span>
+            <i id="ally-lanes-icon" data-lucide="chevron-down" class="w-4 h-4 text-cyan-400 transition-transform"></i>
+          </button>
+
+          <!-- 隠れるレーンスロット群（初期状態 hidden） -->
+          <div id="ally-lanes-container" class="space-y-2 mt-2 hidden transition-all">
+            <!-- TOP -->
+            <div id="slot-ally-top" data-slot="ally-TOP" class="slot-box relative p-2.5 rounded-xl bg-[#091c33] border border-cyan-900/80 cursor-pointer hover:border-cyan-400 transition-all">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-slate-300 flex items-center">
+                  <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-top.png" class="w-3.5 h-3.5 mr-1.5"> TOP
+                </span>
+              </div>
+              <div class="slot-content flex items-center space-x-3">
+                <!-- JS -->
+              </div>
+            </div>
+
+            <!-- MID -->
+            <div id="slot-ally-mid" data-slot="ally-MID" class="slot-box relative p-2.5 rounded-xl bg-[#091c33] border border-cyan-900/80 cursor-pointer hover:border-cyan-400 transition-all">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-slate-300 flex items-center">
+                  <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-middle.png" class="w-3.5 h-3.5 mr-1.5"> MID
+                </span>
+              </div>
+              <div class="slot-content flex items-center space-x-3">
+                <!-- JS -->
+              </div>
+            </div>
+
+            <!-- BOT (ADC) -->
+            <div id="slot-ally-bot" data-slot="ally-ADC" class="slot-box relative p-2.5 rounded-xl bg-[#091c33] border border-cyan-900/80 cursor-pointer hover:border-cyan-400 transition-all">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-slate-300 flex items-center">
+                  <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-bottom.png" class="w-3.5 h-3.5 mr-1.5"> ADC
+                </span>
+              </div>
+              <div class="slot-content flex items-center space-x-3">
+                <!-- JS -->
+              </div>
+            </div>
+
+            <!-- SUP -->
+            <div id="slot-ally-sup" data-slot="ally-SUPPORT" class="slot-box relative p-2.5 rounded-xl bg-[#091c33] border border-cyan-900/80 cursor-pointer hover:border-cyan-400 transition-all">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-slate-300 flex items-center">
+                  <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-utility.png" class="w-3.5 h-3.5 mr-1.5"> SUP
+                </span>
+              </div>
+              <div class="slot-content flex items-center space-x-3">
+                <!-- JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-2.5 pt-2 border-t border-[#0f3a63] text-center text-xs text-cyan-300/70 font-mono font-medium">
+        クリック または ドラッグ＆ドロップで登録
+      </div>
+    </div>
+
+    <!-- ========== 中央カラム：上部「戦術HUD」 ＋ 下部「ドラフト選択グリッド」 ========== -->
+    <div class="lg:col-span-6 flex flex-col space-y-3.5">
+
+      <!-- ===== 上部：リアルタイム戦術HUD（仕様書厳密準拠） ===== -->
+      <div class="bg-[#091424] rounded-2xl border border-[#1b2f47] p-3.5 shadow-2xl">
+        <!-- HUDヘッダータブ -->
+        <div class="flex items-center justify-between pb-2.5 border-b border-[#1b2f47] mb-3">
+          <div class="flex items-center space-x-2 bg-[#050c18] p-1 rounded-xl border border-[#1b2f47]">
+            <button id="hud-tab-matchup" class="px-3.5 py-1.5 rounded-lg text-xs font-black bg-teal-600 text-white shadow-md flex items-center transition-all">
+              <span>試合前（BAN/PICK）</span>
+            </button>
+            <button id="hud-tab-build" class="px-3.5 py-1.5 rounded-lg text-xs font-black text-slate-400 hover:text-white flex items-center transition-all">
+              <span>試合中（ビルド/対策）</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ==================== モード①：【試合前】相性・ガンク先ナビ ==================== -->
+        <div id="hud-view-matchup" class="space-y-3">
+          <!-- 上段：直接対決VS & 序盤戦闘力カード -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- 直接マッチアップシグナル（両方確定時） -->
+            <div id="matchup-signal-card" class="p-3 rounded-xl bg-[#060e1a] border border-slate-800 flex items-center justify-between shadow-md">
+              <!-- JS -->
+            </div>
+
+            <!-- 対面JG序盤（0-15分）戦闘力（常時表示） -->
+            <div id="enemy-early-card" class="p-3 rounded-xl border border-slate-800 bg-[#060e1a] flex flex-col justify-between shadow-md">
+              <!-- JS -->
+            </div>
+          </div>
+
+          <!-- 中段：【第1優先】片方選択時の「ハードカウンター Top 5」＆「有利な相手 Top 5」（仕様書厳密準拠！） -->
+          <div id="hud-matchup-counters-container" class="space-y-2.5">
+            <!-- JSで動的レンダリング -->
+          </div>
+
+          <!-- 下段：【第2優先】他レーンガンクナビ（Lv4最優先 / Lv6介入 / カウンターガンク警戒） -->
+          <div id="hud-gank-rec-container" class="space-y-2">
+            <!-- JS -->
+          </div>
+        </div>
+
+        <!-- ==================== モード②：【試合中】ビルド・スキル確認（仕様書厳密準拠！） ==================== -->
+        <div id="hud-view-build" class="hidden space-y-3">
+          <div class="p-8 text-center text-slate-500 text-xs bg-[#060e1a] rounded-2xl border border-slate-800">
+            自JG（あなた）を選択すると、OP.GG最新コアビルド・初動Lv1〜5スキル・状況別派生アイテムが表示されます
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ===== 下部：ドラフトチャンピオン選択グリッド（173体 / 直接★マイプール登録可能） ===== -->
+      <div class="bg-[#091424] rounded-2xl border border-[#1b2f47] p-2.5 sm:p-3 shadow-2xl flex flex-col space-y-2">
+        <!-- ロールタブ（LoL公式アイコン化） & 検索バー -->
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-[#050c18] p-2 rounded-xl border border-[#16273b]">
+          <div id="draft-role-tabs" class="flex items-center space-x-1.5 text-xs">
+            <button data-role="ALL" class="px-3 py-1.5 rounded-lg font-bold text-slate-400 hover:text-white flex items-center space-x-1.5 transition-colors">
+              <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-fill.png" class="w-4 h-4 filter brightness-125">
+              <span>ALL</span>
+            </button>
+            <button data-role="TOP" class="px-3 py-1.5 rounded-lg font-bold text-slate-400 hover:text-white flex items-center space-x-1.5 transition-colors">
+              <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-top.png" class="w-4 h-4 filter brightness-110">
+              <span>TOP</span>
+            </button>
+            <button data-role="JUNGLE" class="px-3 py-1.5 rounded-lg font-black bg-cyan-600 text-white shadow-md flex items-center space-x-1.5">
+              <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-jungle.png" class="w-4 h-4 filter brightness-110">
+              <span>JG</span>
+            </button>
+            <button data-role="MID" class="px-3 py-1.5 rounded-lg font-bold text-slate-400 hover:text-white flex items-center space-x-1.5 transition-colors">
+              <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-middle.png" class="w-4 h-4 filter brightness-110">
+              <span>MID</span>
+            </button>
+            <button data-role="ADC" class="px-3 py-1.5 rounded-lg font-bold text-slate-400 hover:text-white flex items-center space-x-1.5 transition-colors">
+              <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-bottom.png" class="w-4 h-4 filter brightness-110">
+              <span>ADC</span>
+            </button>
+            <button data-role="SUPPORT" class="px-3 py-1.5 rounded-lg font-bold text-slate-400 hover:text-white flex items-center space-x-1.5 transition-colors">
+              <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-utility.png" class="w-4 h-4 filter brightness-110">
+              <span>SUP</span>
+            </button>
+          </div>
+
+          <!-- 検索インプット -->
+          <div class="relative flex-1 min-w-[180px] max-w-[320px]">
+            <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+            <input id="draft-search-input" type="text" placeholder="" class="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 shadow-inner">
+          </div>
+        </div>
+
+        <!-- 五十音タブバー ＆ 件数表示（1行に統合して無駄な隙間を圧縮） -->
+        <div class="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-0.5">
+          <div id="draft-syllable-tabs" class="flex items-center space-x-1.5 text-xs">
+            <!-- JS -->
+          </div>
+          <span id="draft-match-count" class="text-slate-400 font-mono font-bold text-[11px] flex-shrink-0 pr-1">173体</span>
+        </div>
+
+        <!-- 173体アイコングリッド -->
+        <div id="draft-champ-grid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-9 gap-2.5 max-h-[380px] overflow-y-auto p-2.5 bg-[#050a14] rounded-xl border border-slate-800 shadow-inner">
+          <!-- JSで全173体レンダリング -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 右カラム：（敵軍） ========== -->
+    <div class="lg:col-span-3 bg-[#1e0712] rounded-2xl border-2 border-[#ff2d55]/50 p-3 shadow-2xl flex flex-col justify-start h-fit">
+      <div>
+        <!-- チームヘッダー -->
+        <div class="flex items-center justify-between pb-2.5 border-b border-[#661326] mb-3">
+          <div class="flex items-center space-x-2">
+            <div class="w-3.5 h-3.5 rounded-full bg-rose-500 shadow-md shadow-rose-500/80"></div>
+            <span class="font-black text-sm text-rose-300 tracking-wider">敵チーム</span>
+          </div>
+        </div>
+
+        <!-- JG ⭐ メイン枠 -->
+        <div id="slot-enemy-jg" data-slot="enemy-JUNGLE" class="slot-box relative p-3 rounded-2xl bg-[#3b0d1e] border-2 border-rose-500 cursor-pointer hover:border-rose-400 transition-all shadow-xl group">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs font-black text-rose-200 flex items-center">
+              <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-jungle.png" class="w-4 h-4 mr-1.5 filter brightness-125">
+              JG
+            </span>
+          </div>
+          <div class="slot-content flex items-center space-x-3">
+            <!-- JS -->
+          </div>
+        </div>
+
+        <!-- 他レーン（Top/Mid/Bot/Sup）折りたたみセクション -->
+        <div class="mt-3">
+          <button id="btn-toggle-enemy-lanes" class="w-full py-1.5 px-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/60 text-rose-300 hover:text-rose-200 text-xs font-bold flex items-center justify-between transition-all">
+            <span class="flex items-center space-x-1.5">
+              <i data-lucide="layers" class="w-3.5 h-3.5 text-rose-400"></i>
+              <span id="enemy-lanes-btn-text">他レーンを展開</span>
+            </span>
+            <i id="enemy-lanes-icon" data-lucide="chevron-down" class="w-4 h-4 text-rose-400 transition-transform"></i>
+          </button>
+
+          <!-- 隠れる敵レーンスロット群（初期状態 hidden） -->
+          <div id="enemy-lanes-container" class="space-y-2 mt-2 hidden transition-all">
+            <!-- TOP -->
+            <div id="slot-enemy-top" data-slot="enemy-TOP" class="slot-box relative p-2.5 rounded-xl bg-[#2b0817] border border-rose-950/80 cursor-pointer hover:border-rose-400 transition-all">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-slate-300 flex items-center">
+                  <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-top.png" class="w-3.5 h-3.5 mr-1.5"> TOP
+                </span>
+              </div>
+              <div class="slot-content flex items-center space-x-3">
+                <!-- JS -->
+              </div>
+            </div>
+
+            <!-- MID -->
+            <div id="slot-enemy-mid" data-slot="enemy-MID" class="slot-box relative p-2.5 rounded-xl bg-[#2b0817] border border-rose-950/80 cursor-pointer hover:border-rose-400 transition-all">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-slate-300 flex items-center">
+                  <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-middle.png" class="w-3.5 h-3.5 mr-1.5"> MID
+                </span>
+              </div>
+              <div class="slot-content flex items-center space-x-3">
+                <!-- JS -->
+              </div>
+            </div>
+
+            <!-- BOT (ADC) -->
+            <div id="slot-enemy-bot" data-slot="enemy-ADC" class="slot-box relative p-2.5 rounded-xl bg-[#2b0817] border border-rose-950/80 cursor-pointer hover:border-rose-400 transition-all">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-slate-300 flex items-center">
+                  <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-bottom.png" class="w-3.5 h-3.5 mr-1.5"> ADC
+                </span>
+              </div>
+              <div class="slot-content flex items-center space-x-3">
+                <!-- JS -->
+              </div>
+            </div>
+
+            <!-- SUP -->
+            <div id="slot-enemy-sup" data-slot="enemy-SUPPORT" class="slot-box relative p-2.5 rounded-xl bg-[#2b0817] border border-rose-950/80 cursor-pointer hover:border-rose-400 transition-all">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-slate-300 flex items-center">
+                  <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-utility.png" class="w-3.5 h-3.5 mr-1.5"> SUP
+                </span>
+              </div>
+              <div class="slot-content flex items-center space-x-3">
+                <!-- JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-2.5 pt-2 border-t border-[#661326] text-center text-xs text-rose-300/70 font-mono font-medium">
+        クリック または ドラッグ＆ドロップで登録
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== 4. 🔔 変更点検知詳細モーダル ==================== -->
+  <div id="modal-changes" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+    <div class="bg-[#091424] border border-amber-500/50 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+      <div class="flex items-center justify-between p-4 bg-gradient-to-r from-[#0d1f36] to-[#091428] border-b border-[#1b2f47]">
+        <div class="flex items-center space-x-3">
+          <div class="relative">
+            <img id="change-modal-icon" src="" class="w-12 h-12 rounded-xl border-2 border-amber-400 object-cover shadow-lg">
+            <span class="absolute -top-1.5 -right-1.5 bg-amber-500 text-black p-1 rounded-full shadow">
+              <i data-lucide="bell" class="w-3 h-3 stroke-[2.5]"></i>
+            </span>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h3 id="change-modal-name" class="font-black text-sm text-white"></h3>
+              <span id="change-modal-patch" class="text-xs font-bold px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-md"></span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">お気に入りチャンプの最新パッチ変動データ</p>
+          </div>
+        </div>
+        <button id="btn-close-changes" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-4 overflow-y-auto space-y-4 text-xs">
+        <div id="change-section-balance" class="bg-slate-900/90 rounded-xl p-3.5 border border-slate-700/60 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2 font-black text-slate-200">
+              <span class="text-amber-400">①</span>
+              <span>公式パッチノート調整内容</span>
+            </div>
+            <span id="change-buff-nerf-badge" class="text-[10px] font-bold px-2.5 py-0.5 rounded-full"></span>
+          </div>
+          <p id="change-balance-summary" class="text-xs text-amber-200/90 font-medium pb-2 border-b border-slate-800"></p>
+          <ul id="change-balance-details" class="space-y-2 text-slate-300"></ul>
+        </div>
+
+        <div id="change-section-skill" class="bg-slate-900/90 rounded-xl p-3.5 border border-slate-700/60 space-y-2">
+          <div class="flex items-center space-x-2 font-black text-slate-200">
+            <span class="text-amber-400">②</span>
+            <span>ジャングルスキルオーダーの変化</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2.5 text-xs">
+            <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/40">
+              <div class="text-slate-400 text-[10px] font-bold mb-1">前回パッチ</div>
+              <div id="change-skill-prev" class="font-mono text-slate-300 line-through opacity-75 font-bold"></div>
+            </div>
+            <div class="bg-teal-950/40 p-2.5 rounded-xl border border-teal-500/40">
+              <div class="text-teal-300 text-[10px] font-bold mb-1">最新パッチ</div>
+              <div id="change-skill-curr" class="font-mono text-teal-200 font-black"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="change-section-counter" class="bg-slate-900/90 rounded-xl p-3.5 border border-slate-700/60 space-y-2">
+          <div class="flex items-center space-x-2 font-black text-slate-200">
+            <span class="text-amber-400">③</span>
+            <span>カウンターチャンプ更新（新天敵急浮上）</span>
+          </div>
+          <p id="change-counter-comment" class="text-xs text-rose-300/90 font-medium"></p>
+          <div id="change-counter-list" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="p-3.5 bg-[#07111e] border-t border-[#1b2f47] flex justify-end">
+        <button id="btn-close-changes-footer" class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all">
+          閉じる
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="data.js"></script>
+  <script src="opgg_stats.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
