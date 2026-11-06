@@ -18,7 +18,6 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-DDRAGON_VER = "16.21.1"
 OPGG_API_BASE = "https://lol-api-champion.op.gg/api/global/champions/ranked"
 OPGG_WEB_BASE = "https://www.op.gg/ja/lol/champions"
 HEADERS = {
@@ -47,6 +46,20 @@ def fetch_url_text(url, headers=HEADERS, retries=3):
                 raise e
             time.sleep(0.5 * (attempt + 1))
     return ""
+
+def get_latest_ddragon_version():
+    try:
+        url = "https://ddragon.leagueoflegends.com/api/versions.json"
+        txt = fetch_url_text(url)
+        versions = json.loads(txt)
+        if versions and isinstance(versions, list) and len(versions) > 0:
+            print(f"[0/4] Riot Data Dragon 最新バージョン検出: {versions[0]}")
+            return versions[0]
+    except Exception as e:
+        print(f"Warning: Data Dragon バージョン自動取得失敗 ({e})。フォールバック 16.21.1 を使用します。")
+    return "16.21.1"
+
+DDRAGON_VER = get_latest_ddragon_version()
 
 def fetch_json(url, retries=3):
     text = fetch_url_text(url, headers=HEADERS, retries=retries)
@@ -164,6 +177,12 @@ def main():
         raw_data_js = f.read()
     json_part = raw_data_js.split("window.LOL_DATA = ")[1].split(";\n")[0]
     lol_data = json.loads(json_part)
+
+    # パッチバージョンを最新に同期 (例: "16.22.1" -> "16.22")
+    ver_parts = DDRAGON_VER.split(".")
+    if len(ver_parts) >= 2:
+        lol_data["patchVersion"] = f"{ver_parts[0]}.{ver_parts[1]}"
+    lol_data["lastUpdated"] = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
 
     # 2. Data Dragon (ja_JP) からチャンピオン・アイテム・ルーン辞書を取得
     print("[1/4] Data Dragon (ja_JP) から公式マスターデータを取得中...")
